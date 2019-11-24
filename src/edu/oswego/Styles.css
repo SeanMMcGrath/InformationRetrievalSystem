@@ -1,0 +1,18 @@
+#Container{
+    -fx-background-color: Silver;
+    -fx-border-color: black; -fx-border-width: 2px 2px 2px 2px
+}
+#SearchButton{
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,1), 1, 1, 1, 1);
+}
+#Query{
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,1), 1, 1, 1, 1);
+}
+#Result{
+    -fx-control-inner-background: LightGray;
+    -fx-background-color: none;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,1), 1, 1, 1, 1);
+}
+#TabButtonTop, #TabButtonPrev, #TabButtonNext{
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,1), 1, 1, 1, 1);
+}
