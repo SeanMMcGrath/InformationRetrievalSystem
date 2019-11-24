@@ -135,7 +135,7 @@ public class Controller {
     }
 
     /**
-     * Changes result display to next result, if last result do nothing
+     * Changes result display to next result, if last result do nothing.
      *
      * @param e - unused
      */
