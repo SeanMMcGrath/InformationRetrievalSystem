@@ -4,7 +4,7 @@ public class Query {
 
     String query;
 
-    public Query(String query){
+    public Query(String query) {
         System.out.println("are you?");
         this.query = query;
     }

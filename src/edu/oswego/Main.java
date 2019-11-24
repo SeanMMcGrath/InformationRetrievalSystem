@@ -3,31 +3,14 @@ package edu.oswego;
 import javafx.application.Application;
 import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.geometry.VPos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.control.Button;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.paint.CycleMethod;
-import javafx.scene.paint.LinearGradient;
-import javafx.scene.paint.Stop;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-import java.awt.*;
 import java.io.IOException;
 
 public class Main extends Application {
@@ -36,7 +19,9 @@ public class Main extends Application {
     private static double xOffset = 0;
     private static double yOffset = 0;
 
-
+    public static void main(String[] args) {
+        launch(args);
+    }
 
     @Override
     public void start(final Stage primaryStage) throws IOException {
@@ -68,10 +53,9 @@ public class Main extends Application {
 
             @Override
             public void handle(KeyEvent t) {
-                if(t.getCode()== KeyCode.ESCAPE)
-                {
+                if (t.getCode() == KeyCode.ESCAPE) {
                     System.out.println("Escape pressed, program closing...");
-                    Stage sb = (Stage)primaryStage.getScene().getWindow();//use any one object
+                    Stage sb = (Stage) primaryStage.getScene().getWindow();//use any one object
                     sb.close();
                 }
             }
@@ -79,11 +63,6 @@ public class Main extends Application {
         primaryStage.setScene(frame);
         primaryStage.centerOnScreen();
         primaryStage.show();
-    }
-
-
-    public static void main(String[] args) {
-        launch(args);
     }
 
 }

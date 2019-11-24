@@ -6,17 +6,34 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Document {
-    private String name;
     //have a list of words in class
     //<word, postings> inverted term paragraph index
     private final ConcurrentHashMap<Term, int[]> invertedIndex = new ConcurrentHashMap<Term, int[]>();
+    private String name;
 
 
-    public Document(String name){
+    public Document(String name) {
         this.name = name;
     }
 
-
+    public static String cleanString(String string) {
+        String result = string;
+        result = result.replace("!", "");
+        result = result.replace("?", "");
+        result = result.replace(",", "");
+        result = result.replace(";", "");
+        result = result.replace(".", "");
+        result = result.replace("(", "");
+        result = result.replace(")", "");
+        result = result.replace("[", "");
+        result = result.replace("]", "");
+        result = result.replace("{", "");
+        result = result.replace("}", "");
+        result = result.replace(":", "");
+        result = result.replace("\"", "");
+        result = result.replace("\'", "");
+        return result;
+    }
 
     public String getName() {
         return name;
@@ -25,28 +42,9 @@ public class Document {
     public ConcurrentHashMap<Term, int[]> getInvertedIndex() {
         return invertedIndex;
     }
-
-    public static String cleanString(String string){
-        String result = string;
-        result = result.replace("!","");
-        result = result.replace("?","");
-        result = result.replace(",","");
-        result = result.replace(";","");
-        result = result.replace(".","");
-        result = result.replace("(","");
-        result = result.replace(")","");
-        result = result.replace("[","");
-        result = result.replace("]","");
-        result = result.replace("{","");
-        result = result.replace("}","");
-        result = result.replace(":","");
-        result = result.replace("\"","");
-        result = result.replace("\'","");
-        return result;
-    }
 }
 
-class Paragraph{
+class Paragraph {
     private final ArrayList<String> words = new ArrayList<String>();
     private final AtomicReference<String> paragraph = new AtomicReference<String>();//paragraph is untrimmed
     private int totalWorCount = 0;

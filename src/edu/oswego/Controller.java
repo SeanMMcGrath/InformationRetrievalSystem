@@ -2,17 +2,14 @@ package edu.oswego;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.stage.Stage;
 
-import javax.swing.*;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -21,19 +18,15 @@ import java.util.regex.Pattern;
 
 public class Controller {
 
-    @FXML
-    public TextField Query;
-
-    @FXML
-    public TextArea Result;
-
-    @FXML
-    public Label ResultNum;
-
-    private final ConcurrentHashMap<String, Long> englishWordFreq = new ConcurrentHashMap<String, Long>();
-
     private static final ConcurrentHashMap<String, Document> bookList = new ConcurrentHashMap<String, Document>();
     private static final ConcurrentHashMap<String, Integer> wordList = new ConcurrentHashMap<String, Integer>();
+    private final ConcurrentHashMap<String, Long> englishWordFreq = new ConcurrentHashMap<String, Long>();
+    @FXML
+    public TextField Query;
+    @FXML
+    public TextArea Result;
+    @FXML
+    public Label ResultNum;
     private int index;//init on query completion to 1, + and - on result change
 
     public Controller() throws IOException {
@@ -50,8 +43,8 @@ public class Controller {
         if (fileName != null) {
             ExecutorService executor = Executors.newCachedThreadPool();
             for (int i = 0; i < fileName.length; i++) {
-                if(fileName[i].endsWith(".txt")){//if it is a text file
-                   // System.out.println("Loading " + fileName[i]);
+                if (fileName[i].endsWith(".txt")) {//if it is a text file
+                    // System.out.println("Loading " + fileName[i]);
                     Loader temp = new Loader(fileName[i], f, bookList);//thread it
                     executor.execute(temp);
                 } else {
@@ -59,7 +52,7 @@ public class Controller {
                 }
             }
             executor.shutdown();
-            while(!executor.isShutdown()){
+            while (!executor.isShutdown()) {
                 //wait for executor to shutdown
             }
 
@@ -77,19 +70,20 @@ public class Controller {
     /**
      * does main search analysis
      * if query textbox is empty then do nothing, possibly show warning "please enter a query"
+     *
      * @param e - unused
      */
-    public void searchPressed(ActionEvent e){
+    public void searchPressed(ActionEvent e) {
         //get what is in search bar
         String query = "test word";
 
         //if null do nothing
-        if(query != null){
+        if (query != null) {
             query = query.toLowerCase().trim();
 
             Pattern pattern = Pattern.compile("\\s");
             Matcher matcher = pattern.matcher(query);
-            if(matcher.find()){//if query is a phrase search
+            if (matcher.find()) {//if query is a phrase search
 
 
                 phraseSearch(query);
@@ -98,7 +92,7 @@ public class Controller {
                 //do preliminary comparison to check if word is too common or not in known list of words, if so give user decision to continue
 
                 //check if word is known and if no attempt spellchecking
-                if(queryIsKnown(query)){
+                if (queryIsKnown(query)) {
 
                     //if word size 4 or less check if word is too common in english language by =>630072115 (somewhat arbitrary number)
 
@@ -108,7 +102,7 @@ public class Controller {
 
                 } else {
                     //query not known so attempt spell checking
-                    if(spellCheck(query)){//true if succeeds
+                    if (spellCheck(query)) {//true if succeeds
                         //foud new word
                     } else {
                         //spellchecking failed so tell user their query is not recognized
@@ -121,7 +115,6 @@ public class Controller {
             //do query seperation
 
 
-
             //post search check for spell checking on some decision
             //if decided to un-disable spellcheck button and query user, dont do spell checking itself unless
         }
@@ -130,10 +123,11 @@ public class Controller {
     /**
      * When query had been processed, shows first result in result array
      * if query has not been processed or already on top level result, do nothing
+     *
      * @param e - unused
      */
-    public void topTab(ActionEvent e){
-        if(false){
+    public void topTab(ActionEvent e) {
+        if (false) {
 
             //likely need thread to change GUI
 
@@ -142,28 +136,30 @@ public class Controller {
 
     /**
      * Changes result display to next result, if last result do nothing
+     *
      * @param e - unused
      */
-    public void nextTab(ActionEvent e){
+    public void nextTab(ActionEvent e) {
 
     }
 
     /**
      * Changes result display to previous result, if first result do nothing
+     *
      * @param e - unused
      */
-    public void prevTab(ActionEvent e){
+    public void prevTab(ActionEvent e) {
 
     }
 
-    public void spellCheckClick(ActionEvent e){
+    public void spellCheckClick(ActionEvent e) {
         //on user press make hyprling+label invisable and clear them
         //searchFor(spellCheckedWord); <-basically
 
         //might be good to now have spell check word in global string but instead use whatever the hyperlink is set to
     }
 
-    private boolean spellCheck(String query){
+    private boolean spellCheck(String query) {
         String result;
         //does spell checking
 
@@ -179,13 +175,14 @@ public class Controller {
 
     /**
      * checks whether query is a known word out of known books
+     *
      * @param query - user query
      * @return - true if known, false if not known
      */
-    private boolean queryIsKnown(String query){
+    private boolean queryIsKnown(String query) {
         boolean known = false;
         for (String key : wordList.keySet()) {
-            if(key.equals(query)){
+            if (key.equals(query)) {
                 known = true;
 
             }
@@ -196,32 +193,39 @@ public class Controller {
     /**
      * does the actual searching
      * either will return result or will process result itself
+     *
      * @param query - user query
      */
-    private void singleSearch(String query){
+    private void singleSearch(String query) {
 
+
+        //idf = log(collection size/docs with term)
+        //tf * idf = ranking result
+        //can store results as <bookname, ranking>?
+        //where 0 is one that doesnt have the term at all
     }
 
-    private void phraseSearch(String query){
+    private void phraseSearch(String query) {
 
     }
 
 
     /**
      * loads file of english words and an int of how common the word is into a hashmap
+     *
      * @throws IOException
      */
     private void loadEnglishWordList() throws IOException {
         File file = new File("C:\\projects\\Java\\SearchEngine\\src\\edu\\oswego\\english_words.txt");
 
-        if(file.exists()) {
+        if (file.exists()) {
 
             BufferedReader br = new BufferedReader(new FileReader(file));
 
             String st;
             while ((st = br.readLine()) != null) {
                 String[] temp = st.split("\\s");
-                try{
+                try {
                     englishWordFreq.put(temp[0], Long.parseLong(temp[1]));
                 } catch (NumberFormatException e) {
                     System.out.println("This is not a number or is too many bytes");
@@ -242,19 +246,19 @@ public class Controller {
  * uses that to create a book object and populates it with the information from the text file
  * then places that Document object in possibly static concurrent hashmap inside Controller class
  */
-class Loader extends Thread{
+class Loader extends Thread {
     private String filename;
     private File path;
 
     private ConcurrentHashMap<String, Document> bookList;
 
-    public Loader(String filename, File path, ConcurrentHashMap<String, Document> bookList){
+    public Loader(String filename, File path, ConcurrentHashMap<String, Document> bookList) {
         this.filename = filename;
         this.path = path;
         this.bookList = bookList;
     }
 
-    public void run(){
+    public void run() {
         //grab data from file and process it
 
         //possibly create a book object and place that inside a concurrent hashmap when done,
