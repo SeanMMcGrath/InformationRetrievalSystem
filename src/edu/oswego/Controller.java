@@ -142,7 +142,7 @@ public class Controller {
                 if (query.startsWith("\"") && query.endsWith("\"") && matcher.find()) {//if query is a phrase search (has space in it and starts/ends with ")
                     phraseSearch(query);
                 } else if (matcher.find()) {//if multiple words and now phrase search
-                    multiSearch(query);
+                    termSearch(query);
                 } else {//if only single word
                     singleSearch(query);
                 }
@@ -313,7 +313,7 @@ public class Controller {
      *
      * @param query
      */
-    private void multiSearch(String query) {
+    private void termSearch(String query) {
         String[] splitQuery = query.split("\\s");
 
         for (int i = 0; i < splitQuery.length; i++) {
@@ -332,6 +332,47 @@ public class Controller {
         }
 
         //else do search
+        ArrayList<Result> initialResults = new ArrayList<>();
+
+        for (String bookName : bookList.keySet()) {
+            for (int i = 0; i < splitQuery.length; i++) {
+                ArrayList<Position> positions = positionalIndex.getPositions(splitQuery[i], bookName);
+
+                if (positions != null) {
+                    Result[] tmp = new Result[bookList.get(bookName).paragraphs.size()];
+                    for (Position p : positions) {
+                        if (tmp[p.paraNum - 1] == null) {
+                            String para = "...";
+                            for (Paragraph pa : bookList.get(bookName).paragraphs) {
+                                if (pa.index == p.paraNum) {
+                                    para = pa.rawParagraph;
+                                    break;
+                                }
+                            }
+                            Result r = new Result(bookName, para, p.paraNum, query, splitQuery.length);///query...?
+                            r.frequencies[i]++;
+                            tmp[p.paraNum - 1] = r;
+                        } else {
+                            tmp[p.paraNum - 1].frequencies[i]++;
+                        }
+                    }
+                    for (int j = 0; j < tmp.length; j++) {
+                        if (tmp[j] != null) {
+                            initialResults.add(tmp[j]);
+                        }
+                    }
+                }
+            }
+        }//take all rankings or DF per book, adds them together and does something with them on the rankings of that book
+
+        //do rankings
+        for (int i = 0; i < initialResults.size(); i++) {
+
+        }
+
+        //then sort
+
+        //then display
 
     }
 
@@ -357,7 +398,7 @@ public class Controller {
                                 break;
                             }
                         }
-                        Result r = new Result(bookName, para, p.paraNum, query, 1);
+                        Result r = new Result(bookName, para, p.paraNum, query);
                         tmp[p.paraNum - 1] = r;
                     } else {
                         tmp[p.paraNum - 1].frequency++;
@@ -370,8 +411,6 @@ public class Controller {
                 }
             }
         }
-
-        System.out.println(initialResults.size());
 
         if (initialResults.size() > 0) {
             //ranking is df * idf
@@ -467,7 +506,7 @@ public class Controller {
                                             break;
                                         }
                                     }
-                                    initialResults.add(new Result(bookName, para, paraNum, query, 1));
+                                    initialResults.add(new Result(bookName, para, paraNum, query));
                                 }
                             } else {
                                 String para = "";
@@ -477,11 +516,31 @@ public class Controller {
                                         break;
                                     }
                                 }
-                                initialResults.add(new Result(bookName, para, paraNum, query, 1));
+                                initialResults.add(new Result(bookName, para, paraNum, query));
                             }
                         }
                     }
                 }//if not valid(one or more words not in book at all) continue to next book
+            }
+
+            //rank and display results
+            if (initialResults.size() > 0) {
+                for (int i = 0; i < initialResults.size(); i++) {
+                    //for phrase search just using DF instead of DF IDF
+                    initialResults.get(i).setRanking(initialResults.get(i).frequency);
+                }
+
+                results = initialResults.toArray(new Result[0]);
+                //sort results
+                Arrays.sort(results);
+                //display initial results
+                Result.setText(results[index - 1].rawParagraph);
+                ResultNum.setText(Integer.toString(index) + "/" + Integer.toString(results.length));
+                Book.setText(results[index - 1].bookName);
+                System.out.println("top ranked is " + results[index - 1].ranking);
+                oldQueries.put(query, results);
+            } else {
+                Result.setText("No Results.");
             }
         }
     }
@@ -631,11 +690,24 @@ class Result implements Comparable<Result> {
     int frequency;
     double ranking;
 
-    public Result(String bookName, String rawParagraph, int paragraphNum, String query, int frequency) {
+    int[] frequencies;
+
+    public Result(String bookName, String rawParagraph, int paragraphNum, String query, int freqNum) {
         this.bookName = bookName;
         this.paragraphNum = paragraphNum;
         this.query = query;
-        this.frequency = frequency;
+        this.rawParagraph = rawParagraph;
+        this.frequencies = new int[freqNum];
+        for (int i = 0; i < frequencies.length; i++) {
+            frequencies[i] = 0;
+        }
+    }
+
+    public Result(String bookName, String rawParagraph, int paragraphNum, String query) {
+        this.bookName = bookName;
+        this.paragraphNum = paragraphNum;
+        this.query = query;
+        this.frequency = 1;
         this.rawParagraph = rawParagraph;
     }
 
