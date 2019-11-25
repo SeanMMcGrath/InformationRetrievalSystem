@@ -21,6 +21,11 @@
                   wrapText="true" editable="false"/>
         <Label id="ResultLabel" layoutX="14.0" layoutY="75" prefHeight="10" prefWidth="40" text="Result: "/>
         <Label fx:id="ResultNum" layoutX="54.0" layoutY="75" prefHeight="10" prefWidth="100" text="0/0"/>
+        <Label id="BookLabel" layoutX="160.0" layoutY="75" prefHeight="10" prefWidth="40" text="Book: "/>
+        <Label fx:id="Book" layoutX="202.0" layoutY="75" prefHeight="10" prefWidth="500"/>
+        <Hyperlink fx:id="spellCheckLink" layoutX="14.0" layoutY="430" prefHeight="10" prefWidth="200"
+                   onAction="#spellCheckClick" text="." visible="false"/>
+
     </children>
     <stylesheets>
         <URL value="@Styles.css"/>

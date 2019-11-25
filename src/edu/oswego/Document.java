@@ -1,19 +1,27 @@
 package edu.oswego;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class Document {
     //have a list of words in class
     //<word, postings> inverted term paragraph index
     private final ConcurrentHashMap<Term, int[]> invertedIndex = new ConcurrentHashMap<Term, int[]>();
-    private String name;
+    String name;
+    String fileName;
 
+    //<index, paragraph at index>
+    //final ConcurrentHashMap<Integer, Paragraph> paragraphs = new ConcurrentHashMap<Integer, Paragraph>();
+    ArrayList<Paragraph> paragraphs;
 
-    public Document(String name) {
-        this.name = name;
+    public Document(String name, ArrayList<Paragraph> paragraphs) {
+        //reformat filename into
+        this.fileName = name;
+        String temp = name.replace(".txt", "");
+        temp = temp.replace("-", " ");
+        this.name = temp;
+
+        this.paragraphs = paragraphs;
     }
 
     public static String cleanString(String string) {
@@ -32,6 +40,7 @@ public class Document {
         result = result.replace(":", "");
         result = result.replace("\"", "");
         result = result.replace("\'", "");
+        result = result.replace("_", "");
         return result;
     }
 
@@ -42,27 +51,6 @@ public class Document {
     public ConcurrentHashMap<Term, int[]> getInvertedIndex() {
         return invertedIndex;
     }
-}
-
-class Paragraph {
-    private final ArrayList<String> words = new ArrayList<String>();
-    private final AtomicReference<String> paragraph = new AtomicReference<String>();//paragraph is untrimmed
-    private int totalWorCount = 0;
-
-    public Paragraph(String paragraph) {
-        this.paragraph.set(paragraph);
-
-        String temp = Document.cleanString(paragraph);
-
-        for (String word : temp.split("\\s+")) {
-            if (!words.contains(word)) {
-                words.add(word.toLowerCase().trim());//setup word list
-            }
-            totalWorCount++;
-        }
-        Collections.sort(words);
-    }
-
 }
 
  /*
