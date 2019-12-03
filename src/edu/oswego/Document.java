@@ -1,12 +1,10 @@
 package edu.oswego;
 
 import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class Document {
     //have a list of words in class
     //<word, postings> inverted term paragraph index
-    private final ConcurrentHashMap<Term, int[]> invertedIndex = new ConcurrentHashMap<Term, int[]>();
     String name;
     String fileName;
 
@@ -43,17 +41,4 @@ public class Document {
         result = result.replace("_", "");
         return result;
     }
-
-    public String getName() {
-        return name;
-    }
-
-    public ConcurrentHashMap<Term, int[]> getInvertedIndex() {
-        return invertedIndex;
-    }
 }
-
- /*
-        • basic term lookup  -   term-document index; per para and per whole thing?
-        • “phrase search” 	 -	 positional indexes; in each paragraph
-        • spelling correction - k-gram-term index and edit distance */

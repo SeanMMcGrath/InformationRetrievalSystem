@@ -41,10 +41,6 @@ public class PositionalIndex {
             return null;
         }
     }
-
-    public void getTF() {
-        //return hashmap of <bookname, ?> where ? is all freqs in book in format <paranum, freq>
-    }
 }
 
 class WordData {

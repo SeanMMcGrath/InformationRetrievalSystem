@@ -3,13 +3,14 @@ package edu.oswego;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import static edu.oswego.Controller.wordFreq;
+
 class Paragraph {
     final ArrayList<String> words = new ArrayList<String>();
     String[] paraByWords;
     String rawParagraph;
     String bookName;
     int index;
-    private int totalWorCount = 0;
 
     public Paragraph(String paragraph, String bookName, int index) {
         this.rawParagraph = paragraph;
@@ -21,10 +22,16 @@ class Paragraph {
 
 
         for (String word : temp.split("\\s+")) {
-            if (!words.contains(word)) {
-                words.add(word.toLowerCase().trim());//setup word list
+            if (word.length() != 0) {
+                if (!words.contains(word)) {
+                    words.add(word.toLowerCase().trim());//setup word list
+                }
+                if (wordFreq.containsKey(word.toLowerCase())) {
+                    wordFreq.put(word.toLowerCase().trim(), wordFreq.get(word.toLowerCase().trim()) + 1);
+                } else {
+                    wordFreq.put(word.toLowerCase().trim(), 1);
+                }
             }
-            totalWorCount++;
         }
         Collections.sort(words);
     }

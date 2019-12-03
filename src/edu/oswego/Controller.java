@@ -11,6 +11,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -30,8 +31,11 @@ public class Controller {
     //holds current results in order
     private Result[] results;
 
+    public static final ConcurrentHashMap<String, Integer> wordFreq = new ConcurrentHashMap<>();
+    //index for spell checking
+    private BiGramIndex biGramIndex;
     private static final ConcurrentHashMap<String, Document> bookList = new ConcurrentHashMap<String, Document>();
-    private final ConcurrentHashMap<String, Long> englishWordFreq = new ConcurrentHashMap<String, Long>();
+
     @FXML
     public TextField Query;
     @FXML
@@ -45,9 +49,8 @@ public class Controller {
 
     public Controller() {
         //initialize gui (aka add loading thing) ////or do i make the initial page the loading one and then switch off afterwards
-        System.out.println("Start Check");
 
-        //setup stoplist
+        //setup stop-list
         stopList.add("a");
         stopList.add("an");
         stopList.add("and");
@@ -95,7 +98,7 @@ public class Controller {
 
             //now create indexes
             createPositionalIndex();
-            createKGramIndex();
+            createBiGramIndex();
         } else {
             //system can't run without txt files so exit
             System.out.println("Can not find assets");
@@ -116,10 +119,8 @@ public class Controller {
      */
     public void searchPressed(ActionEvent e) {
         //clear any old stuff
-        if (spellCheckLink.isVisible()) {
-            spellCheckLink.setText("");
-            spellCheckLink.setVisible(false);
-        }
+        spellCheckLink.setText("");
+        spellCheckLink.setVisible(false);
         ResultNum.setText("0/0");
         Result.setText("");
         Book.setText("");
@@ -141,17 +142,15 @@ public class Controller {
                 Matcher matcher = pattern.matcher(query);
                 if (query.startsWith("\"") && query.endsWith("\"") && matcher.find()) {//if query is a phrase search (has space in it and starts/ends with ")
                     phraseSearch(query);
-                } else if (matcher.find()) {//if multiple words and now phrase search
+                } else {//if multiple words and now phrase search
                     termSearch(query);
-                } else {//if only single word
-                    singleSearch(query);
                 }
             } else {
                 //already have seen this query and have stored it
                 //so just have to print it out and change current results to the new query
                 System.out.println("Query already known");
                 results = oldQueries.get(query);
-                Result.setText(bookList.get(results[0].bookName).paragraphs.get(results[0].paragraphNum).rawParagraph);
+                Result.setText(results[0].rawParagraph);
                 index = 1;
                 ResultNum.setText(Integer.toString(index) + "/" + Integer.toString(results.length));
                 Book.setText(results[0].bookName);
@@ -219,30 +218,20 @@ public class Controller {
 
             Pattern pattern = Pattern.compile("\\s");
             Matcher matcher = pattern.matcher(newQuery);
-            if (matcher.find()) {//if query is a phrase search (has space in it)
+            if (newQuery.startsWith("\"") && newQuery.endsWith("\"") && matcher.find()) {//if query is a phrase search (has space in it and starts/ends with ")
                 phraseSearch(newQuery);
-            } else {
-                singleSearch(newQuery);
+            } else {//if multiple words and now phrase search
+                termSearch(newQuery);
             }
-
         } else {
             System.out.println("ERROR: spell check event pressed when there was no spell checking possible");
         }
         //might be good to now have spell check word in global string but instead use whatever the hyperlink is set to
     }
 
-    private boolean spellCheck(String query) {
-        String result;
-        //does spell checking
-
-        //chose best word putting in global spellcheckword string
-
-        //put in hyperlink button and make it visible for user (prob with a thread?) to wait on user OK
-
-        //keep result in global var that waits on user to OK the spell check
-        //on user OK do query'ing on the word in another method
-        //searchFor(result);
-        return false;
+    private String spellCheck(String query) {
+        //does spell checking on query
+        return biGramIndex.process(query);
     }
 
     /**
@@ -252,11 +241,9 @@ public class Controller {
      * @return - true if known, false if not known
      */
     private boolean queryIsKnown(String query) {
-        System.out.println("checking known");
         for (String bookName : bookList.keySet()) {
             for (Paragraph p : bookList.get(bookName).paragraphs) {
                 if (p.words.contains(query)) {
-                    System.out.println("known!");
                     return true;
                 }
             }
@@ -265,52 +252,9 @@ public class Controller {
     }
 
     /**
-     * decides what to do with single query
-     * calls getSingleResult to search for result if query vali
-     * displays top result and stores all results ranked greater than 0
-     *
-     * @param query - user query
-     */
-    private void singleSearch(String query) {
-        //check if word is known and if no attempt spellchecking
-        if (queryIsKnown(query)) {
-            //if word size 4 or less check if word is too common in english language by =>630072115 (somewhat arbitrary number)
-            if (stopList.contains(query)) {
-                System.out.println("query too common");
-                Result.setText("Query is too vague. Please enter new query.");
-            } else {
-                getSingleResult(query);
-            }
-        } else {
-            //query not known so attempt spell checking
-            // String newQuery = spellCheck(query);
-            System.out.println("Attempting spellchecking");
-
-            // String attemptSpellcheck = spellCheck(query);
-
-            if (spellCheck(query)) {//true if succeeds
-                //foud new wordf
-                Result.setText("No Results.");
-                //set up the prompt for user to accept the spell checked word sugestion
-
-            } else {
-                //spellchecking failed so tell user their query is not recognized
-                Result.setText("Query is not recognized.");
-            }
-        }
-
-
-
-        //idf = log(collection size/docs with term)
-        //tf * idf = ranking result
-        //larger the ranking the better
-        //can store results as <bookname, ranking>? in array[].. as [Result] object
-        //where 0 is one that doesnt have the term at all
-    }
-
-    /**
-     * searches for multiple words
-     *
+     * searches for one or more word(s)
+     * if multiple words queried, searches for instances that contain ALL words(and search)
+     * no OR or NOT searches
      * @param query
      */
     private void termSearch(String query) {
@@ -318,28 +262,50 @@ public class Controller {
 
         for (int i = 0; i < splitQuery.length; i++) {
             if (stopList.contains(splitQuery[i])) {
-                System.out.println("multi-query too common");
+                System.out.println("query too common");
                 Result.setText("Query contains parts that are too vague. Please enter new query.");
                 return;
             }
         }
+        boolean changeMade = false;
         for (int i = 0; i < splitQuery.length; i++) {
-            if (!queryIsKnown(query)) {
+            if (!queryIsKnown(splitQuery[i])) {
                 //spell check
+                if (splitQuery[i].length() <= 1) {//dont spell check single length words since using bi-gram
+                    Result.setText("No Results.");
+                    return;
+                } else {
+                    String tmp = spellCheck(splitQuery[i]);
+                    if (tmp == null) {
+                        Result.setText("No Results.");//spell checking failed
+                        return;
+                    } else {
+                        splitQuery[i] = tmp;
+                        changeMade = true;
+                    }
+                }
 
-                return;
             }
+        }
+        if (changeMade) {
+            Result.setText("No Results.");
+            //set spell check prompt
+            spellCheckedQuery = String.join(" ", splitQuery);
+            spellCheckLink.setText("Did you mean " + spellCheckedQuery + "?");
+            spellCheckLink.setVisible(true);
+            return;
         }
 
         //else do search
         ArrayList<Result> initialResults = new ArrayList<>();
 
         for (String bookName : bookList.keySet()) {
+            Result[] tmp = new Result[bookList.get(bookName).paragraphs.size()];
             for (int i = 0; i < splitQuery.length; i++) {
                 ArrayList<Position> positions = positionalIndex.getPositions(splitQuery[i], bookName);
 
                 if (positions != null) {
-                    Result[] tmp = new Result[bookList.get(bookName).paragraphs.size()];
+
                     for (Position p : positions) {
                         if (tmp[p.paraNum - 1] == null) {
                             String para = "...";
@@ -349,85 +315,129 @@ public class Controller {
                                     break;
                                 }
                             }
-                            Result r = new Result(bookName, para, p.paraNum, query, splitQuery.length);///query...?
+                            Result r = new Result(bookName, para, p.paraNum, query, splitQuery.length);
                             r.frequencies[i]++;
                             tmp[p.paraNum - 1] = r;
                         } else {
                             tmp[p.paraNum - 1].frequencies[i]++;
                         }
                     }
-                    for (int j = 0; j < tmp.length; j++) {
-                        if (tmp[j] != null) {
-                            initialResults.add(tmp[j]);
-                        }
-                    }
+                }
+            }
+            for (int j = 0; j < tmp.length; j++) {
+                if (tmp[j] != null) {
+                    initialResults.add(tmp[j]);
                 }
             }
         }//take all rankings or DF per book, adds them together and does something with them on the rankings of that book
 
+
         //do rankings
-        for (int i = 0; i < initialResults.size(); i++) {
-
-        }
-
-        //then sort
-
-        //then display
-
-    }
-
-    private void getSingleResult(String query) {
-        ArrayList<Result> initialResults = new ArrayList<>();
-
-        int collectionSize = getCollectionSize();//number of paragraphs
-        int docsWithQuery = docsWithTerm(query);
-        double idf = Math.log((double) collectionSize / docsWithQuery);
-
-        //get all the doc frequencies as well as initializing all the results
-        for (String bookName : bookList.keySet()) {
-            ArrayList<Position> positions = positionalIndex.getPositions(query, bookName);
-
-            if (positions != null) {
-                Result[] tmp = new Result[bookList.get(bookName).paragraphs.size()];
-                for (Position p : positions) {
-                    if (tmp[p.paraNum - 1] == null) {
-                        String para = "...";
-                        for (Paragraph pa : bookList.get(bookName).paragraphs) {
-                            if (pa.index == p.paraNum) {
-                                para = pa.rawParagraph;
-                                break;
-                            }
-                        }
-                        Result r = new Result(bookName, para, p.paraNum, query);
-                        tmp[p.paraNum - 1] = r;
-                    } else {
-                        tmp[p.paraNum - 1].frequency++;
-                    }
-                }
-                for (int i = 0; i < tmp.length; i++) {
-                    if (tmp[i] != null) {
-                        initialResults.add(tmp[i]);
-                    }
-                }
-            }
-        }
 
         if (initialResults.size() > 0) {
-            //ranking is df * idf
-            for (int i = 0; i < initialResults.size(); i++) {
-                initialResults.get(i).setRanking(initialResults.get(i).frequency * idf);
-            }
+            if (splitQuery.length == 1) {
+                //if it is a single word query
 
-            results = initialResults.toArray(new Result[0]);
-            //sort results
-            Arrays.sort(results);
-            //display initial results
-            Result.setText(results[index - 1].rawParagraph);
-            ResultNum.setText(Integer.toString(index) + "/" + Integer.toString(results.length));
-            Book.setText(results[index - 1].bookName);
-            System.out.println("top ranked is " + results[index - 1].ranking);
-            oldQueries.put(query, results);
+                //paragraph idf
+                int collectionSize = getCollectionSize();//number of paragraphs
+                int parasWithQuery = paragraphsWithTerm(splitQuery[0]);
+                double idf = Math.log((double) collectionSize / parasWithQuery);
+
+                //book idf
+                int bookCollectionSize = bookList.size();
+                int booksWithQuery = booksWithTerm(splitQuery[0]);
+                double book_idf = Math.log((double) bookCollectionSize / booksWithQuery);
+
+                //book name, book tf-idf ranking
+                HashMap<String, Integer> bookFreq = bookFrequency(splitQuery[0]);//get tf-idf of each book
+
+                for (int i = 0; i < initialResults.size(); i++) {
+                    //ranking = (para tf+para idf) + (book tf+book idf)
+                    double rank = (initialResults.get(i).frequencies[0] + idf) + (bookFreq.get(initialResults.get(i).bookName) + book_idf);
+                    initialResults.get(i).setRanking(rank);
+                }
+
+
+                results = initialResults.toArray(new Result[0]);
+                //sort results
+                Arrays.sort(results);
+                //display initial results
+                Result.setText(results[index - 1].rawParagraph);
+                ResultNum.setText(Integer.toString(index) + "/" + Integer.toString(results.length));
+                Book.setText(results[index - 1].bookName);
+                System.out.println("top ranked is " + results[index - 1].ranking);
+                oldQueries.put(query, results);
+            } else {
+                //multiple word query ranking
+
+                //paragraph idf
+                int collectionSize = getCollectionSize();
+                int[] parasWithQuery = new int[splitQuery.length];
+                double[] idf = new double[splitQuery.length];
+
+                //book idf
+                int bookCollectionSize = bookList.size();
+                int[] booksWithQuery = new int[splitQuery.length];
+                double[] book_idf = new double[splitQuery.length];
+
+                ArrayList<HashMap<String, Integer>> list = new ArrayList<>();
+
+                for (int i = 0; i < splitQuery.length; i++) {
+                    //setup the idf's and book ranks for each query
+                    parasWithQuery[i] = paragraphsWithTerm(splitQuery[i]);
+                    idf[i] = Math.log((double) collectionSize / parasWithQuery[i]);
+                    booksWithQuery[i] = booksWithTerm(splitQuery[i]);
+                    book_idf[i] = Math.log((double) bookCollectionSize / booksWithQuery[i]);
+
+                    HashMap<String, Integer> bookFreq = bookFrequency(splitQuery[i]);//get tf-idf of each book
+                    list.add(bookFreq);
+
+                }//if freq > 0 then add, don't add to a 0 or false results will happen
+
+                Iterator<Result> iterator = initialResults.iterator();
+                while (iterator.hasNext()) {
+                    Result tmp = iterator.next();
+                    for (int j = 0; j < tmp.frequencies.length; j++) {
+                        if (tmp.frequencies[j] == 0) {
+                            //if any frequencies are 0(not found) then the result is invalid and removed
+                            iterator.remove();
+                            break;
+                        }
+                    }
+                }
+                if (initialResults.size() != 0) {
+                    for (int i = 0; i < initialResults.size(); i++) {
+                        //ranking = (para tf+para idf) + (book tf+book idf)
+                        double[] ranks = new double[splitQuery.length];
+                        for (int j = 0; j < splitQuery.length; j++) {
+                            if (initialResults.get(i).frequencies[j] > 0) {
+                                ranks[j] = (initialResults.get(i).frequencies[j] + idf[j]) + (list.get(j).get(initialResults.get(i).bookName) + book_idf[j]);
+                            } else {
+                                ranks[j] = 0;
+                            }
+                        }
+                        double rank = 0;
+                        for (int j = 0; j < ranks.length; j++) {
+                            rank = rank + ranks[j];
+                        }
+                        initialResults.get(i).setRanking(rank);
+                    }
+                    results = initialResults.toArray(new Result[0]);
+                    //sort results
+                    Arrays.sort(results);
+                    //display initial results
+                    Result.setText(results[index - 1].rawParagraph);
+                    ResultNum.setText(Integer.toString(index) + "/" + Integer.toString(results.length));
+                    Book.setText(results[index - 1].bookName);
+                    System.out.println("top ranked is " + results[index - 1].ranking);
+                    oldQueries.put(query, results);
+                } else {
+                    //no results including all queries
+                    Result.setText("No Results.");
+                }
+            }
         } else {
+            //no results found, this should be unreachable since spell checking is in place
             Result.setText("No Results.");
         }
     }
@@ -443,13 +453,14 @@ public class Controller {
             if (!queryIsKnown(splitQuery[i])) {
                 cont = false;
                 //part of query not known so attempt spell check and bail on search
-                if (spellCheck(splitQuery[i])) {
-                    Result.setText("No Results.");
-                    break;
-                } else {
+                if (splitQuery[i].length() > 1) {
+                    // if (spellCheck(splitQuery[i])) {
+
+                    // } else {
                     Result.setText("Query is not recognized.");
-                    break;
+                    // }
                 }
+                Result.setText("No Results.");
             }
         }
 
@@ -545,12 +556,40 @@ public class Controller {
         }
     }
 
-    private int docsWithTerm(String term) {
+    private HashMap<String, Integer> bookFrequency(String query) {
+        HashMap<String, Integer> result = new HashMap<>();
+
+        for (String bookName : bookList.keySet()) {
+            ArrayList<Position> temp = positionalIndex.getPositions(query, bookName);
+            if (temp == null) {
+                result.put(bookName, 0);
+            } else {
+                result.put(bookName, temp.size());
+            }
+        }
+
+        return result;
+    }
+
+    private int paragraphsWithTerm(String term) {
         int docCount = 0;
         for (String bookName : bookList.keySet()) {
             for (Paragraph p : bookList.get(bookName).paragraphs) {
                 if (p.words.contains(term)) {
                     docCount++;
+                }
+            }
+        }
+        return docCount;
+    }
+
+    private int booksWithTerm(String term) {
+        int docCount = 0;
+        for (String bookName : bookList.keySet()) {
+            for (Paragraph p : bookList.get(bookName).paragraphs) {
+                if (p.words.contains(term)) {
+                    docCount++;
+                    break;//break from paragraphs so each book gets one counter
                 }
             }
         }
@@ -567,7 +606,6 @@ public class Controller {
 
     private void createPositionalIndex() {
         System.out.println("creating positional index");
-        System.out.println(bookList.size());
         for (String bookName : bookList.keySet()) {
             Document d = bookList.get(bookName);
             //go through each document and place the words from each into positional index
@@ -580,38 +618,10 @@ public class Controller {
         }
     }
 
-    private void createKGramIndex(){
-
-    }
-
-
-    /**
-     * loads file of english words and an int of how common the word is into a hashmap
-     *
-     * @throws IOException
-     */
-    private void loadEnglishWordList() throws IOException {
-        File file = new File("C:\\projects\\Java\\SearchEngine\\src\\edu\\oswego\\assets\\english_words.txt");
-
-        if (file.exists()) {
-
-            BufferedReader br = new BufferedReader(new FileReader(file));
-
-            String st;
-            while ((st = br.readLine()) != null) {
-                String[] temp = st.split("\\s");
-                try {
-                    englishWordFreq.put(temp[0], Long.parseLong(temp[1]));
-                } catch (NumberFormatException e) {
-                    System.out.println("This is not a number or is too many bytes");
-                    System.out.println(e.getMessage());
-                }
-            }
-
-        } else {
-            System.out.println("ERROR: English word file not found, ending program");
-            System.exit(0);
-        }
+    private void createBiGramIndex() {
+        System.out.println("creating bigram");
+        ArrayList<String> wordList = new ArrayList<>(wordFreq.keySet());
+        biGramIndex = new BiGramIndex(wordList);
     }
 }
 
