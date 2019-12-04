@@ -114,7 +114,7 @@ public class Controller {
      * Flow: clear remenants from any past queries -> check if no query -> check if query already known, if so print known data without re-seraching
      * -> check if phrase or basic search
      * Phrase search: make sure all words known, if one isnt spell check it, promt user on new fully spellchecked phrase
-     * Single Search: check if word is known, if not attempt spell correction -> search word or spell-checked word
+     * Single Search: check if word is known, if not attempt spell correction -> search word or spell-checked word and display
      * @param e - unused
      */
     public void searchPressed(ActionEvent e) {
@@ -140,9 +140,9 @@ public class Controller {
             if (!oldQueries.containsKey(query)) {
                 Pattern pattern = Pattern.compile("\\s");
                 Matcher matcher = pattern.matcher(query);
-                if (query.startsWith("\"") && query.endsWith("\"") && matcher.find()) {//if query is a phrase search (has space in it and starts/ends with ")
+                if (query.startsWith("\"") && query.endsWith("\"") && matcher.find()) {//if query is a phrase search (has at least one space in it and starts/ends with ")
                     phraseSearch(query);
-                } else {//if multiple words and now phrase search
+                } else {
                     termSearch(query);
                 }
             } else {
@@ -151,6 +151,7 @@ public class Controller {
                 System.out.println("Query already known");
                 results = oldQueries.get(query);
                 Result.setText(results[0].rawParagraph);
+                Result.setWrapText(true);
                 index = 1;
                 ResultNum.setText(Integer.toString(index) + "/" + Integer.toString(results.length));
                 Book.setText(results[0].bookName);
@@ -167,7 +168,7 @@ public class Controller {
      * @param e - unused
      */
     public void topTab(ActionEvent e) {
-        if (results != null && index != 1) {
+        if (results != null && index != 1) {//if not already displaying top and there are results to display
             index = 1;
             Result.setText(results[index - 1].rawParagraph);
             ResultNum.setText(Integer.toString(index) + "/" + Integer.toString(results.length));
@@ -185,6 +186,7 @@ public class Controller {
         if (results != null && index != results.length) {
             index++;
             Result.setText(results[index - 1].rawParagraph);
+            Result.setWrapText(true);
             ResultNum.setText(Integer.toString(index) + "/" + Integer.toString(results.length));
             Book.setText(results[index - 1].bookName);
             System.out.println(results[index - 1].ranking);
@@ -206,6 +208,11 @@ public class Controller {
         }
     }
 
+    /**
+     * user has indicated they want to check spelling, so do search on the new word
+     *
+     * @param e
+     */
     public void spellCheckClick(ActionEvent e) {
         //on user press make hyprling+label invisable and clear them
         //searchFor(spellCheckedWord); <-basically
@@ -229,14 +236,17 @@ public class Controller {
         //might be good to now have spell check word in global string but instead use whatever the hyperlink is set to
     }
 
+    /**
+     * does spell checking on query
+     * @param query - word to spell correct
+     * @return - null if spellchecking failed, or word that has been spell corrected
+     */
     private String spellCheck(String query) {
-        //does spell checking on query
         return biGramIndex.process(query);
     }
 
     /**
-     * checks whether query is a known word out of known books
-     *
+     * checks whether query is a known word out of words in books
      * @param query - user query
      * @return - true if known, false if not known
      */
@@ -255,6 +265,8 @@ public class Controller {
      * searches for one or more word(s)
      * if multiple words queried, searches for instances that contain ALL words(and search)
      * no OR or NOT searches
+     *
+     * very ugly algorithm i apologise :(
      * @param query
      */
     private void termSearch(String query) {
@@ -308,6 +320,7 @@ public class Controller {
 
                     for (Position p : positions) {
                         if (tmp[p.paraNum - 1] == null) {
+                            //store raw paragraph in result for easy display
                             String para = "...";
                             for (Paragraph pa : bookList.get(bookName).paragraphs) {
                                 if (pa.index == p.paraNum) {
@@ -329,7 +342,7 @@ public class Controller {
                     initialResults.add(tmp[j]);
                 }
             }
-        }//take all rankings or DF per book, adds them together and does something with them on the rankings of that book
+        }
 
 
         //do rankings
@@ -442,6 +455,10 @@ public class Controller {
         }
     }
 
+    /**
+     * user positional index to
+     * @param query -
+     */
     private void phraseSearch(String query) {
         //split phrase and check each word in phrase for validity
         //attempt to spell check each word and promt user if change can be made through spell checking
